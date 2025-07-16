@@ -7,63 +7,164 @@ Original file is located at
     https://colab.research.google.com/drive/1M_t67QNZ5c5F6CsTW2pHu0bxf8syyAn6
 """
 
-import pandas as pd
-
-df = pd.read_csv("export_6876fc80b23c9_20250715211232.csv", sep=";", encoding="utf-8")
-df.head()
-
-catalogo = []
-
-for index, row in df.iterrows():
-    producto = {
-        "sku": str(row["ID Orden"]),
-        "nombre": str(row["Descripción"]).strip(),
-        "precio": int(str(row["Monto"]).replace("$", "").replace(".", "").replace("CLP", "").strip()),
-        "link_pago": str(row["Link de Pago"]).strip()
-    }
-    catalogo.append(producto)
-
-# Mostrar los 3 primeros productos para confirmar
-for p in catalogo[:3]:
-    print(p)
-
-def recomendar_producto(nombre_cliente, necesidad, catalogo):
-    print(f"👋 Hola {nombre_cliente}, gracias por contactarte con DataIngeniería!")
-
-    # Convertimos la necesidad a minúscula para hacer búsquedas más flexibles
-    necesidad = necesidad.lower()
-
-    # Buscamos coincidencias en el nombre del producto
-    sugerencias = [p for p in catalogo if necesidad in p["nombre"].lower()]
-
-    if sugerencias:
-        print("🧠 Basado en lo que buscas, esto podría interesarte:")
-        for s in sugerencias:
-            print(f"🔹 {s['nombre']}\n💸 Precio: ${s['precio']} CLP\n🔗 Link de pago: {s['link_pago']}\n")
-        print("¿Quieres que te ayude a completar la compra o recibir más opciones?")
-    else:
-        print("❌ No encontré coincidencias exactas. ¿Podrías darme más detalles para ayudarte mejor?")
-
-recomendar_producto("Juan", "windows", catalogo)
-
 import streamlit as st
+import yagmail
+import keyring
+import re
 
-# Título del formulario
-st.title("🧠 Asistente IA de Ventas - DataIngeniería")
+# 📧 CONFIGURACIÓN PARA ENVÍO DE CORREOS
+def enviar_email(nombre, correo, telefono, mensaje, producto):
+    receptor = "cotizacion@dataingenieria.cl"
+    asunto = f"Solicitud de contacto: {producto}"
+    contenido = f"""
+Nombre: {nombre}
+Correo: {correo}
+Teléfono: {telefono}
+Producto/Consulta: {producto}
+Mensaje: {mensaje}
+"""
+    try:
+        yag = yagmail.SMTP("cotizacion@dataingenieria.cl")
+        yag.send(to=receptor, subject=asunto, contents=contenido)
+    except Exception as e:
+        st.warning(f"Error al enviar el correo: {e}")
 
-# Entrada de datos del usuario
-nombre = st.text_input("👋 ¿Cuál es tu nombre?")
-necesidad = st.text_input("📝 ¿Qué estás buscando? (Ej: Windows, Office, Web, Soporte)")
+# ✅ Validación rápida de email
+def correo_valido(correo):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", correo)
 
-# Lógica de recomendación
-if nombre and necesidad:
-    sugerencias = [p for p in catalogo if necesidad.lower() in p["nombre"].lower()]
+# 🏠 HOME PROFESIONAL
+def mostrar_home_profesional():
+    st.set_page_config(page_title="DataIngeniería – Agente IA", page_icon="💻", layout="centered")
+    st.markdown("""
+        <style>
+        .logo-home { display:block; margin:auto; width:220px; margin-bottom:20px; }
+        .titulo-home { font-size:42px; font-weight:bold; text-align:center; color:#004b8d; }
+        .subtitulo-home { font-size:20px; text-align:center; color:#444; margin-bottom:30px; }
+        .boton-home { background-color:#004b8d; color:white; padding:12px 25px; border:none; border-radius:8px; text-decoration:none; font-size:16px; display:inline-block; margin:8px; }
+        </style>
+    """, unsafe_allow_html=True)
+    st.markdown('<img src="https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/logo.png" class="logo-home">', unsafe_allow_html=True)
+    st.markdown('<div class="titulo-home">Bienvenido a tu Asistente IA de Ventas</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitulo-home">Automatiza tus cotizaciones, vende licencias y ofrece sitios web inteligentes</div>', unsafe_allow_html=True)
+    st.image("https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/background_home.png", use_column_width=True)
+    st.markdown('<a href="#licencias" class="boton-home">🔐 Licencias</a>', unsafe_allow_html=True)
+    st.markdown('<a href="#sitios" class="boton-home">🌐 Sitios Web</a>', unsafe_allow_html=True)
+    st.markdown('<a href="#soporte" class="boton-home">🛠️ Soporte</a>', unsafe_allow_html=True)
+    st.markdown('<a href="#contacto" class="boton-home">📩 Contacto</a>', unsafe_allow_html=True)
+    st.markdown("---")
 
-    if sugerencias:
-        st.success(f"Hola {nombre}, encontré estas opciones para ti:")
-        for producto in sugerencias:
-            st.write(f"🔹 {producto['nombre']} — ${producto['precio']} CLP")
-            st.markdown(f"[🛒 Comprar ahora con Flow]({producto['link_pago']})", unsafe_allow_html=True)
-    else:
-        st.warning("No encontré coincidencias exactas. ¿Podrías dar más detalles?")
+    # 📲 Botón flotante de WhatsApp
+    st.markdown("""
+        <a href="https://wa.me/56985681629?text=Hola,%20quiero%20más%20información%20sobre%20sus%20servicios" target="_blank" style="
+            position:fixed;
+            bottom:25px;
+            right:25px;
+            background:#25D366;
+            color:white;
+            padding:15px 20px;
+            font-size:18px;
+            border-radius:50px;
+            text-decoration:none;
+            z-index:9999;">
+            💬 WhatsApp
+        </a>
+    """, unsafe_allow_html=True)
+
+# 🔐 LICENCIAS Y PRODUCTOS
+def mostrar_productos():
+    st.markdown('<div id="licencias"></div>', unsafe_allow_html=True)
+    st.subheader("🔐 Licencias y Productos")
+
+    productos = [
+        {
+            "nombre": "Windows 11 Pro Retail",
+            "imagen": "https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/win_11_pro_retail.png",
+            "precio": "$15.990 CLP",
+            "descripcion": "Licencia transferible entre equipos. Ideal para profesionales.",
+            "flow": "https://www.flow.cl/uri/mVrtcC6zV",
+            "whatsapp": "Windows 11 Pro Retail"
+        },
+        {
+            "nombre": "Office 365 Personal",
+            "imagen": "https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/office_365_personal.png",
+            "precio": "$28.990 CLP",
+            "descripcion": "Apps online + almacenamiento + correo Outlook.",
+            "flow": "https://www.flow.cl/uri/a47KjR2Zh",
+            "whatsapp": "Office 365 Personal"
+        }
+    ]
+
+    for p in productos:
+        st.image(p["imagen"], width=300)
+        st.markdown(f"### {p['nombre']}")
+        st.markdown(f"📄 {p['descripcion']}")
+        st.markdown(f"💰 **{p['precio']}**")
+        st.markdown(f"[🛒 Pagar con Flow]({p['flow']})", unsafe_allow_html=True)
+        wsp = f"https://wa.me/56985681629?text=Hola,%20quiero%20información%20sobre%20{p['whatsapp'].replace(' ', '%20')}"
+        st.markdown(f"[📲 Consultar por WhatsApp]({wsp})", unsafe_allow_html=True)
+        st.markdown("---")
+
+# 🌐 PAQUETES WEB
+def mostrar_sitios():
+    st.markdown('<div id="sitios"></div>', unsafe_allow_html=True)
+    st.subheader("🌐 Paquetes Web Inteligentes")
+
+    st.image("https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/plus.png", width=300)
+    st.markdown("### Paquete Web Plus")
+    st.markdown("💼 Sitio corporativo con IA, e-commerce, marketing y pagos integrados")
+    st.markdown("💰 **$3.800.000 CLP**")
+    st.markdown("[🛒 Pagar con Flow](https://www.flow.cl/uri/M1ZMghL7d)", unsafe_allow_html=True)
+    st.markdown("[📲 Consultar por WhatsApp](https://wa.me/56985681629?text=Hola,%20quiero%20consultar%20por%20Paquete%20Web%20Plus)", unsafe_allow_html=True)
+    st.markdown("---")
+
+# 📣 TESTIMONIOS
+def mostrar_testimonios():
+    st.subheader("📣 Opiniones de nuestros clientes")
+    testimonios = [
+        {
+            "nombre": "Claudia Ramos",
+            "imagen": "https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/testimonio_claudia.png",
+            "comentario": "El agente IA nos permitió automatizar las cotizaciones. ¡Rápido, claro y profesional!"
+        },
+        {
+            "nombre": "Andrés Paredes",
+            "imagen": "https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/testimonio_andres.png",
+            "comentario": "Con el paquete Web Plus y Flow, nuestras ventas aumentaron notablemente."
+        }
+    ]
+    for t in testimonios:
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.image(t["imagen"], width=120)
+        with col2:
+            st.markdown(f"**{t['nombre']}**")
+            st.markdown(f"🗣️ _{t['comentario']}_")
+        st.markdown("---")
+
+# 📩 CONTACTO
+def mostrar_contacto_directo():
+    st.markdown('<div id="contacto"></div>', unsafe_allow_html=True)
+    st.subheader("📩 Contáctanos directamente")
+
+    col1, col2 = st.columns([2, 3])
+    with col1:
+        st.image("https://raw.githubusercontent.com/juankzombie/agente-ventas-dataingenieria/main/contacto.png", width=250)
+    with col2:
+        st.markdown("Estamos listos para ayudarte a cotizar, vender o automatizar tu negocio.")
+        st.markdown("📧 cotizacion@dataingenieria.cl")
+        st.markdown("[📲 WhatsApp](https://wa.me/56985681629?text=Hola,%20quiero%20una%20cotización)", unsafe_allow_html=True)
+
+        with st.form("form_contacto"):
+            nombre = st.text_input("👤 Nombre")
+            correo = st.text_input("📧 Correo")
+            mensaje = st.text_area("📝 Mensaje o consulta")
+            enviar = st.form_submit_button("📩 Enviar mensaje")
+
+            if enviar and nombre and correo:
+                if correo_valido(correo):
+                    enviar_email(nombre, correo, "", mensaje, "Contacto general")
+                    st.success(f"✅ Gracias {nombre}, te responderemos muy pronto.")
+                else:
+                    st.warning("⚠️ Ing
 
