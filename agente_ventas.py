@@ -165,7 +165,7 @@ def mostrar_contacto_directo():
                 if correo_valido(correo):
                     enviar_email(nombre, correo, "", mensaje, "Contacto general")
                     st.success(f"✅ Gracias {nombre}, te responderemos muy pronto.")
-                               else:
+           else:
                     st.warning("⚠️ Ingresa un correo válido para continuar.")
             else:
                 st.warning("⚠️ Completa todos los campos para enviar el mensaje.")
