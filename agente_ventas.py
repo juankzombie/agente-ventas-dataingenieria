@@ -155,7 +155,7 @@ def mostrar_contacto_directo():
         st.markdown("📧 cotizacion@dataingenieria.cl")
         st.markdown("[📲 WhatsApp](https://wa.me/56985681629?text=Hola,%20quiero%20una%20cotización)", unsafe_allow_html=True)
 
-        with st.form("form_contacto"):
+                with st.form("form_contacto"):
             nombre = st.text_input("👤 Nombre")
             correo = st.text_input("📧 Correo")
             mensaje = st.text_area("📝 Mensaje o consulta")
@@ -165,8 +165,13 @@ def mostrar_contacto_directo():
                 if correo_valido(correo):
                     enviar_email(nombre, correo, "", mensaje, "Contacto general")
                     st.success(f"✅ Gracias {nombre}, te responderemos muy pronto.")
-           else:
+                else:
                     st.warning("⚠️ Ingresa un correo válido para continuar.")
             else:
                 st.warning("⚠️ Completa todos los campos para enviar el mensaje.")
-
+# 🧠 EJECUCIÓN DE LA APP
+mostrar_home_profesional()
+mostrar_productos()
+mostrar_sitios()
+mostrar_testimonios()
+mostrar_contacto_directo()
